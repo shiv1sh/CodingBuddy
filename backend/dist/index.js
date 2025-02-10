@@ -24,7 +24,6 @@ const anthropic = new sdk_1.default({
 // defaults to process.env["ANTHROPIC_API_KEY"]
 });
 app.post("/template", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    console.log("Control came here");
     const prompt = req.body.prompt;
     const response = yield anthropic.messages.create({
         messages: [{
@@ -37,13 +36,15 @@ app.post("/template", (req, res) => __awaiter(void 0, void 0, void 0, function* 
     const answer = response.content[0].text; // react or node
     if (answer == "react") {
         res.json({
-            prompts: [prompts_1.BASE_PROMPT, react_1.basePrompt]
+            prompts: [prompts_1.BASE_PROMPT, `Here is an artifact that contains all files of the project visible to you. \nConsider the contents of ALL files in the project.\n\n${react_1.basePrompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n .gitignore\n- package-lock.json\n `],
+            uiPrompt: react_1.basePrompt
         });
         return;
     }
     else if (answer === "node") {
         res.json({
-            prompt: [node_1.basePrompt]
+            prompt: [`Here is an artifact that contains all files of the project visible to you. \nConsider the contents of ALL files in the project.\n\n${node_1.basePrompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n .gitignore\n- package-lock.json\n`],
+            uiPrompt: node_1.basePrompt
         });
         return;
     }
@@ -51,22 +52,36 @@ app.post("/template", (req, res) => __awaiter(void 0, void 0, void 0, function* 
         message: "Please give a detailed Prompt"
     });
 }));
+app.post("/chat", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const messages = req.body.message;
+    //console.log(messages)
+    yield anthropic.messages.stream({
+        messages: messages,
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 8000,
+        system: (0, prompts_1.getSystemPrompt)()
+    }).on('text', (text) => {
+        console.log(text);
+    });
+    res.json({});
+    return;
+}));
 app.listen(3000, () => {
     console.log("Server started at port 3000");
 });
 // async function makeAnthropicCall() {
-//     await anthropic.messages.stream({
-//         messages: [{
-//             role: 'user', content: BASE_PROMPT
-//         },{
-//             role: 'user', content: "Here is an artifact that contains all files of the project visible to you. \nConsider the contents of ALL files in the project.\n\n{{BASE_PROMPT}} \n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n .gitignore\n- package-lock.json\n .bolt/prompt"
-//         },{
-//             role:'user', content:"Create a todo app"
-//         }],
-//         model: 'claude-3-5-sonnet-20241022',
-//         max_tokens: 1024,
-//         system: getSystemPrompt()
-//     }).on('text', (text) => {
-//         console.log(text);
-//     });
+// await anthropic.messages.stream({
+//     messages: [{
+//         role: 'user', content: BASE_PROMPT
+//     },{
+//         role: 'user', content: "Here is an artifact that contains all files of the project visible to you. \nConsider the contents of ALL files in the project.\n\n{{BASE_PROMPT}} \n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n .gitignore\n- package-lock.json\n .bolt/prompt"
+//     },{
+//         role:'user', content:"Create a todo app"
+//     }],
+//     model: 'claude-3-5-sonnet-20241022',
+//     max_tokens: 1024,
+//     system: getSystemPrompt()
+// }).on('text', (text) => {
+//     console.log(text);
+// });
 // }

@@ -40,23 +40,38 @@ app.post("/template",async (req,res)=>{
         message:"Please give a detailed Prompt"
     })
 })
+
+app.post("/chat",async(req,res)=>{
+    const messages = req.body.message;
+    //console.log(messages)
+    await anthropic.messages.stream({
+        messages: messages,
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 8000,
+        system: getSystemPrompt()
+    }).on('text', (text) => {
+        console.log(text);
+    });
+    res.json({});
+    return;
+})
 app.listen(3000,()=>{
     console.log("Server started at port 3000");
 })
 // async function makeAnthropicCall() {
-//     await anthropic.messages.stream({
-//         messages: [{
-//             role: 'user', content: BASE_PROMPT
-//         },{
-//             role: 'user', content: "Here is an artifact that contains all files of the project visible to you. \nConsider the contents of ALL files in the project.\n\n{{BASE_PROMPT}} \n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n .gitignore\n- package-lock.json\n .bolt/prompt"
-//         },{
-//             role:'user', content:"Create a todo app"
-//         }],
-//         model: 'claude-3-5-sonnet-20241022',
-//         max_tokens: 1024,
-//         system: getSystemPrompt()
-//     }).on('text', (text) => {
-//         console.log(text);
-//     });
+    // await anthropic.messages.stream({
+    //     messages: [{
+    //         role: 'user', content: BASE_PROMPT
+    //     },{
+    //         role: 'user', content: "Here is an artifact that contains all files of the project visible to you. \nConsider the contents of ALL files in the project.\n\n{{BASE_PROMPT}} \n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n .gitignore\n- package-lock.json\n .bolt/prompt"
+    //     },{
+    //         role:'user', content:"Create a todo app"
+    //     }],
+    //     model: 'claude-3-5-sonnet-20241022',
+    //     max_tokens: 1024,
+    //     system: getSystemPrompt()
+    // }).on('text', (text) => {
+    //     console.log(text);
+    // });
 
 // }
