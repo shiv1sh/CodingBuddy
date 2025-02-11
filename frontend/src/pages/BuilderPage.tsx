@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FolderTree, ListTodo, ChevronDown, ChevronRight, FileText, Code, Eye } from 'lucide-react';
 import Editor from "@monaco-editor/react";
+import axios from 'axios';
+import { BACKEND_URL } from '../config';
+import { Step } from '../types/interface';
+import { parseXml } from '../steps';
 
 interface FileNode {
   id: number;
@@ -30,12 +34,13 @@ const BuilderPage = () => {
   ];
 
   // Mock steps for demonstration
-  const steps = [
-    { id: 1, title: 'Initialize Project', status: 'completed' },
-    { id: 2, title: 'Setup Dependencies', status: 'in-progress' },
-    { id: 3, title: 'Generate Components', status: 'pending' },
-    { id: 4, title: 'Style Implementation', status: 'pending' },
-  ];
+  // const steps = [
+  //   { id: 1, title: 'Initialize Project', status: 'completed' },
+  //   { id: 2, title: 'Setup Dependencies', status: 'in-progress' },
+  //   { id: 3, title: 'Generate Components', status: 'pending' },
+  //   { id: 4, title: 'Style Implementation', status: 'pending' },
+  // ];
+  const [steps,setSteps] = useState<Step[]>([]);
 
   // Mock file structure with content
   const files: FileNode[] = [
@@ -72,7 +77,32 @@ const BuilderPage = () => {
       ]
     },
   ];
+  const init = async ()=>{
+    const response = await axios.post(BACKEND_URL+"/template",{
+      prompt : prompt
+    })
+   // console.log(JSON.stringify(response.data, null, 2)); 
+    const {prompts,uiPrompt} = response.data;
+    console.log(prompt+ "-----------"+ uiPrompt);
+    setSteps(parseXml(uiPrompt));
 
+    console.log(steps + "Here are the initial steps");
+    const stepsResponse = await axios.post(`${BACKEND_URL}/chat`,{
+      message : [prompts,prompt].map((contents)=>({
+        role:"user",
+        contents
+      }))
+    }
+    )
+    console.log(stepsResponse.data.response);
+    setSteps(s => [...s, ...parseXml(stepsResponse.data.response).map(x => ({
+      ...x,
+      status: "pending" as "pending"
+    }))]);
+  }
+  useEffect(()=>{
+    init();
+  })
   const toggleFolder = (folderId: number) => {
     setExpandedFolders(prev => 
       prev.includes(folderId)
@@ -178,7 +208,7 @@ const BuilderPage = () => {
   return (
     <div className="min-h-screen bg-gray-900 flex">
       {/* Steps Panel */}
-      <div className="w-80 bg-gray-800 border-r border-gray-700 p-6">
+      <div className="w-80 bg-gray-800 border-r border-gray-700 p-6 overflow-hidden">
         <div className="flex items-center gap-2 mb-6">
           <ListTodo className="h-6 w-6 text-indigo-400" />
           <h2 className="text-xl font-semibold text-white">Build Steps</h2>
@@ -196,6 +226,7 @@ const BuilderPage = () => {
               }`}
             >
               <div className="font-medium">{step.title}</div>
+              <div className="font-medium">{step.description}</div>
               <div className="text-sm mt-1 opacity-80">
                 {step.status.charAt(0).toUpperCase() + step.status.slice(1)}
               </div>

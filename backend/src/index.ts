@@ -5,8 +5,9 @@ import express from "express";
 import { TextBlock } from "@anthropic-ai/sdk/resources";
 import { basePrompt as node_basePrompt} from "./default_pompts/node";
 import { basePrompt as react_basePrompt} from "./default_pompts/react";
-
+import cors from "cors";
 const app = express();
+app.use(cors())
 app.use(express.json());
 const anthropic = new Anthropic({
     // defaults to process.env["ANTHROPIC_API_KEY"]
@@ -43,8 +44,8 @@ app.post("/template",async (req,res)=>{
 
 app.post("/chat",async(req,res)=>{
     const messages = req.body.message;
-    //console.log(messages)
-    await anthropic.messages.stream({
+    console.log(messages);
+    const stream = await anthropic.messages.stream({
         messages: messages,
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 8000,
@@ -52,7 +53,19 @@ app.post("/chat",async(req,res)=>{
     }).on('text', (text) => {
         console.log(text);
     });
-    res.json({});
+    stream.on('text', (text) => {
+        console.log(text);
+        res.write(`data: ${text}\n\n`); // Stream chunks of data
+    });
+
+    stream.on('end', () => {
+        res.end(); // Close the response once streaming is done
+    });
+
+    stream.on('error', (err) => {
+        console.error(err);
+        res.status(500).json({ error: "Streaming failed" });
+    });
     return;
 })
 app.listen(3000,()=>{

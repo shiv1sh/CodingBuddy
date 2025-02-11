@@ -18,7 +18,9 @@ const prompts_1 = require("./prompts");
 const express_1 = __importDefault(require("express"));
 const node_1 = require("./default_pompts/node");
 const react_1 = require("./default_pompts/react");
+const cors_1 = __importDefault(require("cors"));
 const app = (0, express_1.default)();
+app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 const anthropic = new sdk_1.default({
 // defaults to process.env["ANTHROPIC_API_KEY"]
@@ -54,8 +56,8 @@ app.post("/template", (req, res) => __awaiter(void 0, void 0, void 0, function* 
 }));
 app.post("/chat", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const messages = req.body.message;
-    //console.log(messages)
-    yield anthropic.messages.stream({
+    console.log(messages);
+    const stream = yield anthropic.messages.stream({
         messages: messages,
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 8000,
@@ -63,7 +65,17 @@ app.post("/chat", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }).on('text', (text) => {
         console.log(text);
     });
-    res.json({});
+    stream.on('text', (text) => {
+        console.log(text);
+        res.write(`data: ${text}\n\n`); // Stream chunks of data
+    });
+    stream.on('end', () => {
+        res.end(); // Close the response once streaming is done
+    });
+    stream.on('error', (err) => {
+        console.error(err);
+        res.status(500).json({ error: "Streaming failed" });
+    });
     return;
 }));
 app.listen(3000, () => {
