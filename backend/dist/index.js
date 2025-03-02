@@ -13,87 +13,56 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 require("dotenv").config();
+const express_1 = __importDefault(require("express"));
 const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
 const prompts_1 = require("./prompts");
-const express_1 = __importDefault(require("express"));
-const node_1 = require("./default_pompts/node");
-const react_1 = require("./default_pompts/react");
+const node_1 = require("./defaults/node");
+const react_1 = require("./defaults/react");
 const cors_1 = __importDefault(require("cors"));
+const anthropic = new sdk_1.default();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
-const anthropic = new sdk_1.default({
-// defaults to process.env["ANTHROPIC_API_KEY"]
-});
 app.post("/template", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const prompt = req.body.prompt;
     const response = yield anthropic.messages.create({
         messages: [{
                 role: 'user', content: prompt
-            },],
+            }],
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 200,
-        system: "Return either react or node based on what do you think this project should be. Only return a single word either 'node' or 'react. Do not return any thing extra'"
+        system: "Return either node or react based on what do you think this project should be. Only return a single word either 'node' or 'react'. Do not return anything extra"
     });
     const answer = response.content[0].text; // react or node
     if (answer == "react") {
         res.json({
-            prompts: [prompts_1.BASE_PROMPT, `Here is an artifact that contains all files of the project visible to you. \nConsider the contents of ALL files in the project.\n\n${react_1.basePrompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n .gitignore\n- package-lock.json\n `],
-            uiPrompt: react_1.basePrompt
+            prompts: [prompts_1.BASE_PROMPT, `Here is an artifact that contains all files of the project visible to you.\nConsider the contents of ALL files in the project.\n\n${react_1.basePrompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n`],
+            uiPrompts: [react_1.basePrompt]
         });
         return;
     }
-    else if (answer === "node") {
+    if (answer === "node") {
         res.json({
-            prompt: [`Here is an artifact that contains all files of the project visible to you. \nConsider the contents of ALL files in the project.\n\n${node_1.basePrompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n .gitignore\n- package-lock.json\n`],
-            uiPrompt: node_1.basePrompt
+            prompts: [`Here is an artifact that contains all files of the project visible to you.\nConsider the contents of ALL files in the project.\n\n${react_1.basePrompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n`],
+            uiPrompts: [node_1.basePrompt]
         });
         return;
     }
-    res.json({
-        message: "Please give a detailed Prompt"
-    });
+    res.status(403).json({ message: "You cant access this" });
+    return;
 }));
 app.post("/chat", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const messages = req.body.message;
-    console.log(messages);
-    const stream = yield anthropic.messages.stream({
+    var _a;
+    const messages = req.body.messages;
+    const response = yield anthropic.messages.create({
         messages: messages,
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 8000,
         system: (0, prompts_1.getSystemPrompt)()
-    }).on('text', (text) => {
-        console.log(text);
     });
-    stream.on('text', (text) => {
-        console.log(text);
-        res.write(`data: ${text}\n\n`); // Stream chunks of data
+    console.log(response);
+    res.json({
+        response: (_a = response.content[0]) === null || _a === void 0 ? void 0 : _a.text
     });
-    stream.on('end', () => {
-        res.end(); // Close the response once streaming is done
-    });
-    stream.on('error', (err) => {
-        console.error(err);
-        res.status(500).json({ error: "Streaming failed" });
-    });
-    return;
 }));
-app.listen(3000, () => {
-    console.log("Server started at port 3000");
-});
-// async function makeAnthropicCall() {
-// await anthropic.messages.stream({
-//     messages: [{
-//         role: 'user', content: BASE_PROMPT
-//     },{
-//         role: 'user', content: "Here is an artifact that contains all files of the project visible to you. \nConsider the contents of ALL files in the project.\n\n{{BASE_PROMPT}} \n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n .gitignore\n- package-lock.json\n .bolt/prompt"
-//     },{
-//         role:'user', content:"Create a todo app"
-//     }],
-//     model: 'claude-3-5-sonnet-20241022',
-//     max_tokens: 1024,
-//     system: getSystemPrompt()
-// }).on('text', (text) => {
-//     console.log(text);
-// });
-// }
+app.listen(3000);
